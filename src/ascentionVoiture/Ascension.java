@@ -1,10 +1,10 @@
-package ascensionVoiture;
-
+package ascentionVoiture;
 
 public class Ascension {
 
 	static Double[] positions;
 	static Double[] vitesses;
+	static Double[][] Vt;
 	static int nbElemDiscret=32;
 	static int nb_intervalle=(nbElemDiscret-1);
 	
@@ -66,6 +66,7 @@ public class Ascension {
 		/**
 		 *  le tableau pos represente les 32 positions possibles
 		 */
+		positions = new Double[c.getPrecisionPosition()];
         positions[0]= c.getPosMin();
         Double step = (c.getPosMax()-c.getPosMin())/nb_intervalle;
         for (int i=1;i<nb_intervalle;i++){
@@ -77,6 +78,7 @@ public class Ascension {
          *  le tableau vitesse represente les 32 vitesses possibles
          */
         step = (c.getVitesseMax()-c.getVitesseMin())/nb_intervalle;
+        vitesses = new Double[c.getPrecisionVitesse()];
         vitesses[0]= c.getVitesseMin();
         for (int i=1;i<nb_intervalle;i++){
         	vitesses[i]=vitesses[i-1]+step;
@@ -88,6 +90,19 @@ public class Ascension {
         
         afficherTabPosition();
         afficherTabVitesse();
+        
+        Vt = new Double[c.getPrecisionPosition()][c.getPrecisionVitesse()];
+        
+        System.out.println();
+        System.out.println("Tableau VT : ");
+        
+        for(int i = 0; i < c.getPrecisionPosition(); i++){
+        	for(int j = 0; j < c.getPrecisionVitesse(); j++){
+        		Double val = Math.abs(positions[i]) + Math.abs(vitesses[j]);
+        		Vt[i][j] = val;
+        		//System.out.println("VT[" + positions[i] + "][" + vitesses[j] + "] : " + val);
+        	}
+        }
         
 	}
 	
@@ -118,7 +133,7 @@ public class Ascension {
 				acc = accD;
 				System.out.println("On va a droite");
 			}
-			setNextStep();
+			//setNextStep();
 			majGain();
 			// version complete
 			//System.out.println("Nouvelle position:"+position+"("+indexPos+") avec une vitesse de "+vitesse+"("+indexVit+"). Le gain est "+gain);
@@ -130,22 +145,22 @@ public class Ascension {
 	}
 	
 
-	void setNextPosition(){
-		position=position+vitesse;
+	void setNextPosition(Double v){
+		position=position+v;
 	}
 	
 	void setNextVitesse(){
 		vitesse=vitesse+0.001*acc-0.0025*Math.cos(3*position);
 	}
 	
-	void setNextStep(){
+	/*void setNextStep(){
 		setNextPosition();
 		indexPos = foundNearestPos(position);
 		position = positions[indexPos];
 		setNextVitesse();
 		indexVit = foundNearestSpeed(vitesse);
 		vitesse = vitesses[indexVit];
-	}
+	}*/
 	
 
 	public void majGain(){
@@ -219,6 +234,13 @@ public class Ascension {
 		}
 		return false;
 	}
+
+	@Override
+	public String toString() {
+		return "Ascension [position=" + position + ", indexPos=" + indexPos + ", vitesse=" + vitesse + ", indexVit="
+				+ indexVit + ", acc=" + acc + ", gain=" + gain + ", gagne=" + gagne + "]";
+	}
+	
 	
 	
 }
