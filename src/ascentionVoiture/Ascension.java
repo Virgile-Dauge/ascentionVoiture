@@ -1,100 +1,58 @@
 package ascentionVoiture;
 
-public class Ascension {
+import java.util.ArrayList;
 
-	static Double[] positions;
-	static Double[] vitesses;
-	static Double[][] Vt;
-	static int nbElemDiscret=32;
-	static int nb_intervalle=(nbElemDiscret-1);
+public class Ascension {
 	
-	// Données de la classe config qui seront copié pour rapidité d'execution
-	Double position=0.00;
-	int indexPos=0;
-	Double vitesse=0.00;
-	int indexVit=0;
-	static int accG=-1;
-	static int accD=1;
-	int acc;
-	double gain=0;
+	// Donnï¿½es de la classe config qui seront copiï¿½ pour rapiditï¿½ d'execution
+	@SuppressWarnings("unchecked")
+	private ArrayList <Etat> etats = new ArrayList();
 	
-	// Entier (booleen) pour connaitre si la partie est gagnee
-	int gagne=0;
+	private Double[][] Vt;
+	private Double[] positions,
+					 vitesses;
 	
-	
-	/**
-	 * Constructeur
-	 */
-	public Ascension() {
-		
-		
-		positions = new Double[nbElemDiscret];
-		vitesses = new Double[nbElemDiscret];
-		
-		/**
-		 *  le tableau pos represente les 32 positions possibles
-		 */		
-        positions[0]= -1.2;
-        Double step = 1.8/nb_intervalle;
-        for (int i=1;i<nb_intervalle;i++){
-        	positions[i]=positions[i-1]+step;
-        }
-        positions[nb_intervalle]=(Double) 0.6;
-        
-        
-        /**
-         *  le tableau vitesse represente les 32 vitesses possibles
-         */
-        step = 0.14/nb_intervalle;
-        vitesses[0]= -0.07;
-        for (int i=1;i<nb_intervalle;i++){
-        	vitesses[i]=vitesses[i-1]+step;
-        }
-        vitesses[nb_intervalle]=(Double) 0.07;
-        
-        afficherTabPosition();
-        afficherTabVitesse();
-      
-	}
-	
+	private Config config;
+	private Etat etatCourant,
+				 etatDroite,
+				 etatGauche;
+	private double sommeVal;
+	private boolean bloque;
 	/**
 	 * Contructeur qui prend en compte la config.
 	 * @param c
 	 */
 	public Ascension(Config c) {
+		this.config = c;
+		sommeVal = 1;
+		bloque = false;
+		int nb_intervalles_pos = c.getPrecisionPosition()-1;
+		int nb_intervalles_vit = c.getPrecisionVitesse()-1;
+		
 		
 		/**
 		 *  le tableau pos represente les 32 positions possibles
 		 */
 		positions = new Double[c.getPrecisionPosition()];
         positions[0]= c.getPosMin();
-        Double step = (c.getPosMax()-c.getPosMin())/nb_intervalle;
-        for (int i=1;i<nb_intervalle;i++){
+        Double step = (c.getPosMax()-c.getPosMin())/(nb_intervalles_pos);
+        for (int i=1;i<nb_intervalles_pos;i++){
         	positions[i]=positions[i-1]+step;
         }
-        positions[nb_intervalle]= c.getPosMax();
+        positions[nb_intervalles_pos]= c.getPosMax();
         
         /**
          *  le tableau vitesse represente les 32 vitesses possibles
          */
-        step = (c.getVitesseMax()-c.getVitesseMin())/nb_intervalle;
+        step = (c.getVitesseMax()-c.getVitesseMin())/nb_intervalles_vit;
         vitesses = new Double[c.getPrecisionVitesse()];
         vitesses[0]= c.getVitesseMin();
-        for (int i=1;i<nb_intervalle;i++){
+        for (int i=1;i<nb_intervalles_vit;i++){
         	vitesses[i]=vitesses[i-1]+step;
         }
-        vitesses[nb_intervalle]= c.getVitesseMax();
-        
-        position= c.getStartPos();
-        vitesse= c.getStartVit();
-        
-        afficherTabPosition();
-        afficherTabVitesse();
+        vitesses[nb_intervalles_vit]= c.getVitesseMax();
         
         Vt = new Double[c.getPrecisionPosition()][c.getPrecisionVitesse()];
-        
-        System.out.println();
-        System.out.println("Tableau VT : ");
         
         for(int i = 0; i < c.getPrecisionPosition(); i++){
         	for(int j = 0; j < c.getPrecisionVitesse(); j++){
@@ -104,105 +62,59 @@ public class Ascension {
         	}
         }
         
-	}
-	
-	// Sert à afficher le tableau representant tous les états de vitesse
-	public void afficherTabVitesse(){
-		System.out.println("tableau vitesse:");
-        for (int i=0;i<nbElemDiscret;i++){
-        	System.out.println(i+": "+vitesses[i]);
-        }
-	}
-	
-	// Sert à afficher le tableau représentant tous les états de position possibles
-	public void afficherTabPosition(){
-		System.out.println("tableau positions:");
-        for (int i=0;i<nbElemDiscret;i++){
-        	System.out.println(i+": "+positions[i]);
-        }
-	}
-	
-	
-	public void simuleUneRouteRandom(){
-		while(checkIfFinished()==0){
-			int nb= (int)(Math.random()*2);
-			if (nb==1){
-				acc =accG;
-				System.out.println("on va a gauche");
-			}else{
-				acc = accD;
-				System.out.println("On va a droite");
-			}
-			//setNextStep();
-			majGain();
-			// version complete
-			//System.out.println("Nouvelle position:"+position+"("+indexPos+") avec une vitesse de "+vitesse+"("+indexVit+"). Le gain est "+gain);
-			
-			//version etat
-			System.out.println("Nouvelle position: ("+indexPos+","+indexVit+") Gain: "+gain);
-			
-		}
-	}
-	
+        etatCourant = calibrationEtat(c.getStartPos(),c.getStartVit(),"start");
+        etats.add(etatCourant);
 
-	void setNextPosition(Double v){
-		position=position+v;
 	}
-	
-	void setNextVitesse(){
-		vitesse=vitesse+0.001*acc-0.0025*Math.cos(3*position);
+	private Etat calibrationEtat(double position,double vitesse, String action){
+		int indexPos = foundNearestPos(position);
+		int indexVit = foundNearestSpeed(vitesse);
+		double positionCal = positions[indexPos];
+		double vitesseCal = vitesses[indexVit];
+		double val = Vt[indexPos][indexVit] +config.getGamma()*sommeVal;
+		return new Etat(positionCal,vitesseCal,val,action);
 	}
-	
-	/*void setNextStep(){
-		setNextPosition();
-		indexPos = foundNearestPos(position);
-		position = positions[indexPos];
-		setNextVitesse();
-		indexVit = foundNearestSpeed(vitesse);
-		vitesse = vitesses[indexVit];
-	}*/
-	
-
-	public void majGain(){
-		if(position > 0.55 && position < 0.6){
-			gain=gain+0.07-Math.abs(vitesse);
+	public void nextStep(){
+		double position = etatCourant.getPosition() + etatCourant.getVitesse();
+		etatGauche = calibrationEtat(position,etatCourant.getVitesse()+0.001*-1-0.0025*Math.cos(3*position),"Gauche");
+		etatDroite = calibrationEtat(position,etatCourant.getVitesse()+0.001*1-0.0025*Math.cos(3*position),"Droite");
+		if (etatGauche.isBetterThan(etatDroite)){
+				etatCourant = etatGauche;
 		}
-		if(position > -1.2 && position < -1.15){
-			gain=gain-1;
+		else{
+				etatCourant = etatDroite;
+		}
+		etats.add(etatCourant);
+		sommeVal += etatCourant.getValue();
+		System.out.println(etatCourant.toString());
+	}
+	public boolean isGoalReached(){
+		if(etatCourant.getPosition()==config.getPosMax())return true;
+		else return false;
+	}
+	public boolean isGameOver(){
+		if(etatCourant.getPosition()==config.getPosMin() || bloque)return true;
+		else return false;
+	}
+	public void afficheResult(){
+		for(Etat e : etats){
+			System.out.println(e.toString());
 		}
 	}
-	
-	/**
-	 * fonction qui retourne 1 si la recherche est terminée (voiture dans le ravin ou en haut de la colline)
-	 * La fonction set egalement le booleen gagne si la partie est gagnee
-	 * @return int
-	 */
-	int checkIfFinished(){
-		if(position < positions[0]){
-			gagne=0;
-			return 1;
-		}
-		if(position == positions[nb_intervalle]){
-			gagne=1;
-			return 1;
-		}
-		return 0;
-	}
-
 	/**
 	 * Fonction qui retourne l'index de la vitesse la plus proche
 	 * @param x
 	 * @return pos
 	 */
-	int foundNearestPos(Double x){
+	private int foundNearestPos(Double x){
 		Double ecartMin=25.00;
 		int pos=0;
 		
-        for (int i=0;i<nb_intervalle;i++){
+        for (int i=0;i<config.getPrecisionPosition()-1;i++){
         	Double current=Math.abs(positions[i]-x);
         	if(current < ecartMin){
         		ecartMin=current;
-        		pos=i;
+        		pos = i;
         	}
         }
 		return pos;
@@ -213,34 +125,20 @@ public class Ascension {
 	 * @param x
 	 * @return int
 	 */
-	int foundNearestSpeed(Double x){
+	private int foundNearestSpeed(Double x){
 		Double ecartMin=25.00;
 		int pos=0;
 		
-        for (int i=0;i<nb_intervalle;i++){
+        for (int i=0;i<config.getPrecisionVitesse()-1;i++){
         	Double current=Math.abs(vitesses[i]-x);
         	if(current < ecartMin){
         		ecartMin=current;
-        		pos=i;
+        		pos = i;
         	}
         }
 		return pos;
 	}
-	
-	// Permet de savoir si la partie est gagne ou non
-	public boolean estGagne(){
-		if (gagne==1){
-			return true;
-		}
-		return false;
-	}
 
-	@Override
-	public String toString() {
-		return "Ascension [position=" + position + ", indexPos=" + indexPos + ", vitesse=" + vitesse + ", indexVit="
-				+ indexVit + ", acc=" + acc + ", gain=" + gain + ", gagne=" + gagne + "]";
-	}
-	
-	
-	
+
+
 }

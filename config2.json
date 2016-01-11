@@ -1,14 +1,14 @@
 {
-    "posMax": "0.6",
+    "posMax": "25",
     "posMin": "-1.2",
     "vitesseMax": "0.07",
     "vitesseMin": "-0.07",
     "startPos": "0",
     "startVit": "0",
     "coefPente": "-0.0025",
-    "precisionPosition": "128",
-    "precisionVitesse": "128",
+    "precisionPosition": "32",
+    "precisionVitesse": "32",
     "epsilon": "0.001",
-    "gamma": "0.55",
+    "gamma": "0.95",
     "name": "Default"
 }
